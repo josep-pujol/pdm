@@ -58,7 +58,7 @@ class TwitterClient:
         else:
             return "negative"
 
-    def get_tweets(self, query, count=10):
+    def get_tweets(self, query, count=10, geo=None, lang="en"):
         """
         Main function to fetch tweets and parse them.
         """
@@ -67,7 +67,7 @@ class TwitterClient:
 
         try:
             # call twitter api to fetch tweets
-            fetched_tweets = self.api.search_tweets(q=query, count=count)
+            fetched_tweets = self.api.search_tweets(q=query, count=count, geocode=geo, lang=lang)
 
             # parsing tweets one by one
             for tweet in fetched_tweets:
@@ -98,7 +98,9 @@ def main():
     # creating object of TwitterClient Class
     api = TwitterClient()
     # calling function to get tweets
-    tweets = api.get_tweets(query="Donald Trump", count=200)
+    tweets = api.get_tweets(query="weather", count=200, geo="41.3850639,2.1734035,5km")
+    # 2.103621,41.343999,2.232702,41.449146  # https://boundingbox.klokantech.com/
+    # center of Barcelona plsus 5km radius  41.3850639, 2.1734035, 5km
 
     # picking positive tweets from tweets
     ptweets = [tweet for tweet in tweets if tweet["sentiment"] == "positive"]
