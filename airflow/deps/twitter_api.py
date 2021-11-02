@@ -30,8 +30,9 @@ class TwitterClient:
         except Exception as e:
             print("Error: Authentication Failed", str(e))
             raise
-
-    def clean_tweet(self, tweet):
+    
+    @staticmethod
+    def clean_tweet(tweet):
         """
         Utility function to clean tweet text by removing links, special characters
         using simple regex statements.
@@ -47,17 +48,25 @@ class TwitterClient:
         Main function to fetch tweets and parse them.
         """
         tweets = []
+        tweets_ids = set()
 
         try:
             # call twitter api to fetch tweets
             fetched_tweets = self.api.search_tweets(q=query, count=count, geocode=geo, lang=lang)
             for tweet in fetched_tweets:
-                parsed_tweet = {}
-                parsed_tweet["text"] = tweet.text
+                parsed_tweet = {
+                    "id": tweet.id_str,
+                    "created_at": str(tweet.created_at),
+                    "text": self.clean_tweet(tweet.text)
+                }
+                tweets_ids.add(tweet.id_str)
+                
+                if not parsed_tweet["text"]:
+                    continue
 
                 if tweet.retweet_count > 0:
                     # if tweet has retweets, ensure that it is appended only once
-                    if parsed_tweet not in tweets:
+                    if parsed_tweet["id"] not in tweets_ids:
                         tweets.append(parsed_tweet)
                 else:
                     tweets.append(parsed_tweet)
