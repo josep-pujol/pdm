@@ -4,6 +4,7 @@ import tweepy
 from tweepy import OAuthHandler
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 
@@ -30,7 +31,7 @@ class TwitterClient:
         except Exception as e:
             print("Error: Authentication Failed", str(e))
             raise
-    
+
     @staticmethod
     def clean_tweet(tweet):
         """
@@ -52,15 +53,17 @@ class TwitterClient:
 
         try:
             # call twitter api to fetch tweets
-            fetched_tweets = self.api.search_tweets(q=query, count=count, geocode=geo, lang=lang)
+            fetched_tweets = self.api.search_tweets(
+                q=query, count=count, geocode=geo, lang=lang
+            )
             for tweet in fetched_tweets:
                 parsed_tweet = {
                     "id": tweet.id_str,
                     "created_at": str(tweet.created_at),
-                    "text": self.clean_tweet(tweet.text)
+                    "text": self.clean_tweet(tweet.text),
                 }
                 tweets_ids.add(tweet.id_str)
-                
+
                 if not parsed_tweet["text"]:
                     continue
 
