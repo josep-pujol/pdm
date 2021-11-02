@@ -1,6 +1,7 @@
 __pycache__/
-logs/
+.env
 .venv/
 .vscode/
 Dockerfile
-.env
+logs/
+mountpoint/

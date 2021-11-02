@@ -74,6 +74,7 @@ pyparsing==2.4.7
 pyrsistent==0.18.0
 python-daemon==2.3.0
 python-dateutil==2.8.2
+python-dotenv==0.19.1
 python-nvd3==0.15.0
 python-slugify==4.0.1
 python3-openid==3.2.0
