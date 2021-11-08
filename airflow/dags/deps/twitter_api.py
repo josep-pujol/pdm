@@ -1,6 +1,8 @@
 import os
 import re
+from typing import Any, Callable, List, Set, Union
 import tweepy
+from tweepy.models import Status
 from tweepy import OAuthHandler
 
 from dotenv import load_dotenv
@@ -19,21 +21,20 @@ class TwitterClient:
         Class constructor or initialization method.
         """
         # keys and tokens from the Twitter Dev Console
-        consumer_key = os.getenv("CONSUMER_KEY")
-        consumer_secret = os.getenv("CONSUMER_SECRET")
-        access_token = os.getenv("ACCESS_TOKEN")
-        access_token_secret = os.getenv("ACCESS_TOKEN_SECRET")
+        consumer_key: str = os.getenv("CONSUMER_KEY")
+        consumer_secret: str = os.getenv("CONSUMER_SECRET")
+        access_token: str = os.getenv("ACCESS_TOKEN")
+        access_token_secret: str = os.getenv("ACCESS_TOKEN_SECRET")
 
         try:
             self.auth = OAuthHandler(consumer_key, consumer_secret)
             self.auth.set_access_token(access_token, access_token_secret)
             self.api = tweepy.API(self.auth)
-        except Exception as e:
-            print("Error: Twitter Authentication Failed", str(e))
-            raise
+        except Exception as err:
+            print("Error: Twitter Authentication Failed", str(err))
 
     @staticmethod
-    def clean_tweet(tweet):
+    def clean_tweet_text(tweet: str) -> str:
         """
         Utility function to clean tweet text by removing links, special characters
         using simple regex statements.
@@ -44,15 +45,29 @@ class TwitterClient:
             ).split()
         )
 
-    def get_tweets(self, query="", count=10, geo=None, lang="en", until="2021-01-01", tweet_parser=None):
+    def get_tweets(
+        self,
+        query: str = "",
+        count: int = 10,
+        geo: Union[str, None] = None,
+        lang: str = "en",
+        until: Union[str, None] = None,
+        tweet_parser: Callable = None,
+    ) -> List[Any]:
         """
         Main function to fetch tweets.
-        Pass a tweet_parser function to parse the tweet otherwise raw json format is returned
-        """
-        tweets = []
-        tweets_ids = set()
+        Pass a tweet_parser function to parse the tweet otherwise a list of
+        tweepy objects is returned
 
-        def parse_tweet(tweet, tweet_parser=None):
+        Args:
+            until: must be date in string format YYYY-MM-DD in the last 7 days
+        Returns:
+            List of tweets
+        """
+        tweets: List[Status] = []
+        tweets_ids: Set[str] = set()
+
+        def parse_tweet(tweet, tweet_parser=None) -> Any:
             if tweet_parser:
                 return tweet_parser(tweet)
             else:
@@ -62,8 +77,8 @@ class TwitterClient:
             fetched_tweets = self.api.search_tweets(
                 q=query, count=count, geocode=geo, lang=lang, until=until
             )
-        except tweepy.TweepyException as e:
-            print("Error : " + str(e))
+        except tweepy.TweepyException as err:
+            print("Error : " + str(err))
 
         for tweet in fetched_tweets:
             tweets_ids.add(tweet.id_str)
@@ -78,8 +93,11 @@ class TwitterClient:
 
 
 def main():
+    """For testing purposes"""
     api = TwitterClient()
-    tweets = api.get_tweets(query="", count=200, geo="41.3850639,2.1734035,5km")
+    tweets = api.get_tweets(
+        query="", count=200, geo="41.3850639,2.1734035,5km", until="2021-11-07"
+    )
     # 2.103621,41.343999,2.232702,41.449146  # https://boundingbox.klokantech.com/
     # center of Barcelona plus 5km radius  41.3850639, 2.1734035, 5km
     print(tweets)
