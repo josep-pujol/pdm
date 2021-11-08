@@ -1,2 +1,2 @@
 #!/bin/bash
-cp -r ./airflow/dags ./mountpoint/dags
+cp -r ./airflow/dags/ ./mountpoint/dags/

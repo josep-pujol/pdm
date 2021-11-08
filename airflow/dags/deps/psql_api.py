@@ -1,6 +1,7 @@
 import os
 import urllib
 from sqlalchemy import create_engine
+from psycopg2.extras import Json
 
 from dotenv import load_dotenv
 
@@ -12,12 +13,19 @@ class Psql:
     Postgresql Database client
     """
 
-    def __init__(self):
-        self.host = os.getenv("POSTGRES_HOST")
-        self.port = os.getenv("POSTGRES_PORT")
-        self.usr = os.getenv("POSTGRES_USER")
-        self.pwd = os.getenv("POSTGRES_PASSWORD")
-        self.db_name = os.getenv("POSTGRES_DB")
+    def __init__(
+        self,
+        host=os.getenv("POSTGRES_HOST"),
+        port=os.getenv("POSTGRES_PORT"),
+        usr=os.getenv("POSTGRES_USER"),
+        pwd=os.getenv("POSTGRES_PASSWORD"),
+        db_name=os.getenv("POSTGRES_DB"),
+    ):
+        self.host = host
+        self.port = port
+        self.usr = usr
+        self.pwd = pwd
+        self.db_name = db_name
         self.conn_obj = None
 
     def __repr__(self):
@@ -45,12 +53,19 @@ class Psql:
         self.conn_obj.close()
         print(f"Connection to {self.db_name} closed")
 
+    @staticmethod
+    def insert_raw_tweet(connection=None, tweet_id=None, tweet_json=None):
+        connection.execute(
+            "insert into data_lake.twitter_data (tweet_id, tweet_json) values ((%s), (%s)) ON CONFLICT ON CONSTRAINT twitter_data_un DO NOTHING;",
+            [tweet_id, Json(tweet_json)],
+        )
+
 
 def main():
     with Psql() as conn:
         res = conn.execute("SELECT version();")
-        print(res.fetchall())
+        print(res.rowcount)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
