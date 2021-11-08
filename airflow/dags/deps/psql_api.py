@@ -1,7 +1,9 @@
 import os
+from typing import Union
 import urllib
 from sqlalchemy import create_engine
 from psycopg2.extras import Json
+from psycopg2 import OperationalError
 
 from dotenv import load_dotenv
 
@@ -15,11 +17,11 @@ class Psql:
 
     def __init__(
         self,
-        host=os.getenv("POSTGRES_HOST"),
-        port=os.getenv("POSTGRES_PORT"),
-        usr=os.getenv("POSTGRES_USER"),
-        pwd=os.getenv("POSTGRES_PASSWORD"),
-        db_name=os.getenv("POSTGRES_DB"),
+        host: str=os.getenv("POSTGRES_HOST"),
+        port: Union[str, int]=os.getenv("POSTGRES_PORT"),
+        usr: str=os.getenv("POSTGRES_USER"),
+        pwd: str=os.getenv("POSTGRES_PASSWORD"),
+        db_name: str=os.getenv("POSTGRES_DB"),
     ):
         self.host = host
         self.port = port
@@ -41,9 +43,13 @@ class Psql:
                 f"@{self.host}:{self.port}/{self.db_name}"
             )
 
-        def get_conn(connection_string):
-            engine = create_engine(connection_string)
-            self.conn_obj = engine.connect()
+        def get_conn(connection_string: str):
+            try:
+                engine = create_engine(connection_string)
+                self.conn_obj = engine.connect()
+            except OperationalError as err:
+                print("Exception while connecting to db: ", err)
+
             return self.conn_obj
 
         conn_string = build_conn_string()
@@ -54,14 +60,18 @@ class Psql:
         print(f"Connection to {self.db_name} closed")
 
     @staticmethod
-    def insert_raw_tweet(connection=None, tweet_id=None, tweet_json=None):
-        connection.execute(
-            "insert into data_lake.twitter_data (tweet_id, tweet_json) values ((%s), (%s)) ON CONFLICT ON CONSTRAINT twitter_data_un DO NOTHING;",
-            [tweet_id, Json(tweet_json)],
-        )
-
+    def insert_json_tweet(connection=None, tweet_id=None, tweet_json=None):
+        """insert into postgres-dw a tweet in json format"""
+        try:
+            connection.execute(
+                "insert into data_lake.twitter_data (tweet_id, tweet_json) values ((%s), (%s)) ON CONFLICT ON CONSTRAINT twitter_data_un DO NOTHING;",
+                [tweet_id, Json(tweet_json)],
+            )
+        except Exception as err:
+            print("Exception while executing db query: ", err)
 
 def main():
+    """For Testing purposes"""
     with Psql() as conn:
         res = conn.execute("SELECT version();")
         print(res.rowcount)
