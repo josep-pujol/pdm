@@ -29,7 +29,7 @@ class TwitterClient:
             self.auth.set_access_token(access_token, access_token_secret)
             self.api = tweepy.API(self.auth)
         except Exception as e:
-            print("Error: Authentication Failed", str(e))
+            print("Error: Twitter Authentication Failed", str(e))
             raise
 
     @staticmethod
@@ -44,87 +44,46 @@ class TwitterClient:
             ).split()
         )
 
-    def get_tweets(self, query, count=10, geo=None, lang="en"):
+    def get_tweets(self, query="", count=10, geo=None, lang="en", until="2021-01-01", tweet_parser=None):
         """
-        Main function to fetch tweets and parse them.
-        """
-        tweets = []
-        tweets_ids = set()
-
-        try:
-            # call twitter api to fetch tweets
-            fetched_tweets = self.api.search_tweets(
-                q=query, count=count, geocode=geo, lang=lang
-            )
-            for tweet in fetched_tweets:
-                parsed_tweet = {
-                    "id": tweet.id_str,
-                    "created_at": str(tweet.created_at),
-                    "text": self.clean_tweet(tweet.text),
-                }
-                tweets_ids.add(tweet.id_str)
-
-                if not parsed_tweet["text"]:
-                    continue
-
-                if tweet.retweet_count > 0:
-                    # if tweet has retweets, ensure that it is appended only once
-                    if parsed_tweet["id"] not in tweets_ids:
-                        tweets.append(parsed_tweet)
-                else:
-                    tweets.append(parsed_tweet)
-
-            return tweets
-
-        except tweepy.TweepyException as e:
-            print("Error : " + str(e))
-
-    def get_raw_tweets(self, query, count=10, geo=None, lang="en"):
-        """
-        Main function to fetch raw tweets in json.
+        Main function to fetch tweets.
+        Pass a tweet_parser function to parse the tweet otherwise raw json format is returned
         """
         tweets = []
         tweets_ids = set()
 
+        def parse_tweet(tweet, tweet_parser=None):
+            if tweet_parser:
+                return tweet_parser(tweet)
+            else:
+                return tweet
+
         try:
-            # call twitter api to fetch tweets
             fetched_tweets = self.api.search_tweets(
-                q=query, count=count, geocode=geo, lang=lang
+                q=query, count=count, geocode=geo, lang=lang, until=until
             )
-            for tweet in fetched_tweets:
-                tweets_ids.add(tweet.id_str)
-                if tweet.retweet_count > 0:
-                    # if tweet has retweets, ensure that it is appended only once
-                    if tweet.id_str not in tweets_ids:
-                        tweets.append(tweet)
-                else:
-                    tweets.append(tweet)
-
-            return tweets
-
         except tweepy.TweepyException as e:
             print("Error : " + str(e))
+
+        for tweet in fetched_tweets:
+            tweets_ids.add(tweet.id_str)
+            if tweet.retweet_count > 0:
+                # if tweet has retweets, ensure that it is appended only once
+                if tweet.id_str not in tweets_ids:
+                    tweets.append(parse_tweet(tweet=tweet, tweet_parser=tweet_parser))
+            else:
+                tweets.append(parse_tweet(tweet=tweet, tweet_parser=tweet_parser))
+
+        return tweets
 
 
 def main():
     api = TwitterClient()
-    # tweets = api.get_tweets(query="", count=200, geo="41.3850639,2.1734035,5km")
-    tweets = api.get_raw_tweets(query="", count=200, geo="41.3850639,2.1734035,5km")
+    tweets = api.get_tweets(query="", count=200, geo="41.3850639,2.1734035,5km")
     # 2.103621,41.343999,2.232702,41.449146  # https://boundingbox.klokantech.com/
     # center of Barcelona plus 5km radius  41.3850639, 2.1734035, 5km
     print(tweets)
     print(f"Fetched {len(tweets)} tweets.")
-
-    # from psql_api import Psql
-    # import json
-    # api = TwitterClient()
-    # tweets = api.get_raw_tweets(query="", count=10000, geo="41.3850639,2.1734035,5km")  # center of Barcelona plus 5km radius  41.3850639, 2.1734035, 5km
-    # with Psql(db_name="data_lake")  as conn:
-    #     for t in tweets:
-    #         print(t.id)
-    #         tweet_id = t.id
-    #         tweet_json = json.dumps(t._json)
-    #         Psql.insert_raw_tweet(conn, tweet_id, tweet_json)
 
 
 if __name__ == "__main__":
