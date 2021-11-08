@@ -96,7 +96,7 @@ def main():
     """For testing purposes"""
     api = TwitterClient()
     tweets = api.get_tweets(
-        query="", count=200, geo="41.3850639,2.1734035,5km", until="2021-11-07"
+        query="", count=1000, geo="41.3850639,2.1734035,5km", until="2021-11-07"
     )
     # 2.103621,41.343999,2.232702,41.449146  # https://boundingbox.klokantech.com/
     # center of Barcelona plus 5km radius  41.3850639, 2.1734035, 5km

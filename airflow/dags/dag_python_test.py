@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import json
 from deps.psql_api import Psql
 from deps.twitter_api import TwitterClient
@@ -29,8 +29,9 @@ with DAG(
 
     def fetch_tweets():
         """calls the Twitter API to fetch tweets and then store results in postgres-dw"""
+        yesterday = str(date.today() - timedelta(days=-1))
         api = TwitterClient()
-        tweets = api.get_raw_tweets(query="", count=10000, geo="41.3850639,2.1734035,5km")  # center of Barcelona plus 5km radius  41.3850639, 2.1734035, 5km
+        tweets = api.get_tweets(query=" ", count=10000, geo="41.3850639,2.1734035,5km", lang="en", until=yesterday)  # center of Barcelona plus 5km radius  41.3850639, 2.1734035, 5km
         with Psql(db_name="data_lake")  as conn:
             for t in tweets:
                 print(t.id)
