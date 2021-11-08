@@ -1,5 +1,5 @@
 import os
-from typing import Union
+from typing import Union, ValuesView
 import urllib
 from sqlalchemy import create_engine
 from psycopg2.extras import Json
@@ -17,11 +17,11 @@ class Psql:
 
     def __init__(
         self,
-        host: str=os.getenv("POSTGRES_HOST"),
-        port: Union[str, int]=os.getenv("POSTGRES_PORT"),
-        usr: str=os.getenv("POSTGRES_USER"),
-        pwd: str=os.getenv("POSTGRES_PASSWORD"),
-        db_name: str=os.getenv("POSTGRES_DB"),
+        host: str = os.getenv("POSTGRES_HOST"),
+        port: Union[str, int] = os.getenv("POSTGRES_PORT"),
+        usr: str = os.getenv("POSTGRES_USER"),
+        pwd: str = os.getenv("POSTGRES_PASSWORD"),
+        db_name: str = os.getenv("POSTGRES_DB"),
     ):
         self.host = host
         self.port = port
@@ -29,6 +29,11 @@ class Psql:
         self.pwd = pwd
         self.db_name = db_name
         self.conn_obj = None
+        self.__handle_miss_params__()
+
+    def __handle_miss_params__(self):
+        if not(all((self.host, self.port, self.usr, self.pwd, self.db_name))):
+            raise ValueError("Missing value(s) to connect to db")
 
     def __repr__(self):
         return f"<{self.__class__.__name__} to {self.db_name}>"
@@ -66,6 +71,17 @@ class Psql:
             connection.execute(
                 "insert into data_lake.twitter_data (tweet_id, tweet_json) values ((%s), (%s)) ON CONFLICT ON CONSTRAINT twitter_data_un DO NOTHING;",
                 [tweet_id, Json(tweet_json)],
+            )
+        except Exception as err:
+            print("Exception while executing db query: ", err)
+
+    @staticmethod
+    def insert_json_weather(connection=None, weather_id=None, weather_json=None):
+        """insert into postgres-dw data fetched from weather forecast api in json format"""
+        try:
+            connection.execute(
+                "insert into data_lake.weather_data (weather_id, weather_json) values ((%s), (%s)) ON CONFLICT ON CONSTRAINT weather_data_un DO NOTHING;",
+                [weather_id, Json(weather_json)],
             )
         except Exception as err:
             print("Exception while executing db query: ", err)
