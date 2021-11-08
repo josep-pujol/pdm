@@ -31,13 +31,13 @@ with DAG(
         """calls the Twitter API to fetch tweets and then store results in postgres-dw"""
         yesterday = str(date.today() - timedelta(days=-1))
         api = TwitterClient()
-        tweets = api.get_tweets(query=" ", count=10000, geo="41.3850639,2.1734035,5km", lang="en", until=yesterday)  # center of Barcelona plus 5km radius  41.3850639, 2.1734035, 5km
+        tweets = api.get_tweets(query="", count=10000, geo="41.3850639,2.1734035,5km", lang="en", until=yesterday)  # center of Barcelona plus 5km radius  41.3850639, 2.1734035, 5km
         with Psql(db_name="data_lake")  as conn:
             for t in tweets:
                 print(t.id)
                 tweet_id = t.id
                 tweet_json = json.dumps(t._json)
-                Psql.insert_raw_tweet(conn, tweet_id, tweet_json)
+                Psql.insert_json_tweet(conn, tweet_id, tweet_json)
         return "Tweets fetched and stored in postgres-dw"
 
     t1 = PythonOperator(
