@@ -2,6 +2,7 @@ from datetime import datetime, date, timedelta
 import json
 from deps.psql_api import Psql
 from deps.twitter_api import TwitterClient
+from deps.weather_api import get_weather
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
@@ -40,10 +41,20 @@ with DAG(
                 Psql.insert_json_tweet(conn, tweet_id, tweet_json)
         return "Tweets fetched and stored in postgres-dw"
 
+    def fetch_weather():
+        w = get_weather(owm_location="Barcelona,ES").to_dict()
+        with Psql(db_name="data_lake")  as conn:
+            print(w)
+            weather_id = str(date.today())
+            weather_json = json.dumps(w)
+            Psql.insert_json_weather(conn, weather_id, weather_json)
+        return "Current Weather fetched and stored in postgres-dw"
+
+
     t1 = PythonOperator(
         task_id='print_context',
         python_callable=print_context,
-        op_kwargs={"context": "FETCHING TWEETS"},
+        op_kwargs={"context": "FETCHING DATA"},
     )
 
     t2 = PythonOperator(
@@ -51,4 +62,9 @@ with DAG(
         python_callable=fetch_tweets,
     )
 
-    t1 >> t2
+    t3 = PythonOperator(
+        task_id='fetch_weather',
+        python_callable=fetch_weather,
+    )
+
+    t1 >> [t2, t3]
