@@ -1,11 +1,12 @@
-from datetime import datetime, date, timedelta
 import json
-from deps.psql_api import Psql
-from deps.twitter_api import TwitterClient
-from deps.weather_api import get_weather
+from datetime import date, datetime, timedelta
+
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
+from deps.psql_api import Psql
+from deps.twitter_api import TwitterClient
+from deps.weather_api import get_weather
 
 # These args will get passed on to each operator
 default_args = {
@@ -50,6 +51,17 @@ with DAG(
             Psql.insert_json_weather(conn, weather_id, weather_json)
         return "Current Weather fetched and stored in postgres-dw"
 
+    def sync_weather():
+        with Psql(db_name="data_lake")  as conn_dl:
+            with Psql(db_name="warehouse")  as conn_dw:
+                Psql.sync_weather_dl2dw(conn_dl, conn_dw)
+        return "Weather data synchronized"
+    
+    def sync_twitter():
+        with Psql(db_name="data_lake")  as conn_dl:
+            with Psql(db_name="warehouse")  as conn_dw:
+                Psql.sync_twitter_dl2dw(conn_dl, conn_dw)
+        return "Twitter data synchronized"
 
     t1 = PythonOperator(
         task_id='print_context',
@@ -67,4 +79,17 @@ with DAG(
         python_callable=fetch_weather,
     )
 
-    t1 >> [t2, t3]
+    t4 = PythonOperator(
+        task_id='sync_twitter',
+        python_callable=sync_twitter
+    )
+
+    t5 = PythonOperator(
+        task_id='sync_weather',
+        python_callable=sync_weather
+    )
+
+
+    t1 >> [t2, t3] 
+    t2 >> t4
+    t3 >> t5

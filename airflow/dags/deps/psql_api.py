@@ -32,7 +32,7 @@ class Psql:
         self.__handle_miss_params__()
 
     def __handle_miss_params__(self):
-        if not(all((self.host, self.port, self.usr, self.pwd, self.db_name))):
+        if not (all((self.host, self.port, self.usr, self.pwd, self.db_name))):
             raise ValueError("Missing value(s) to connect to db")
 
     def __repr__(self):
@@ -86,9 +86,65 @@ class Psql:
         except Exception as err:
             print("Exception while executing db query: ", err)
 
+    @staticmethod
+    def query_results_generator(query_results=None):
+        for row in query_results:
+            yield row
+
+    @staticmethod
+    def sync_weather_dl2dw(conn_datalake=None, conn_datawarehouse=None):
+        json_to_table = """
+        select                                                                             weather_id
+            ,(weather_json #>> '{}')::jsonb -> 'location' ->> 'name' 					as weather_location
+            ,(weather_json #>> '{}')::jsonb -> 'weather' ->> 'detailed_status' 			as detailed_status
+            ,(weather_json #>> '{}')::jsonb -> 'weather' ->> 'humidity' 				as humidity
+            ,(weather_json #>> '{}')::jsonb -> 'weather' -> 'pressure' ->> 'press'		as pressure
+            ,(weather_json #>> '{}')::jsonb -> 'weather' -> 'temperature' ->> 'temp'	as temperature_kelvins
+        from data_lake.weather_data;
+        """
+
+        insert_into_weather = """
+        insert into data_warehouse.weather (weather_id, weather_location, detailed_status, humidity, pressure, temperature_kelvins)
+        values ((%s), (%s), (%s), (%s), (%s), (%s)) ON CONFLICT ON CONSTRAINT weather_un DO NOTHING;
+        """
+
+        result = conn_datalake.execute(json_to_table)
+        generator = Psql.query_results_generator(result.fetchall())
+        for row in generator:
+            print(row)
+            conn_datawarehouse.execute(insert_into_weather, row)
+
+    @staticmethod
+    def sync_twitter_dl2dw(conn_datalake=None, conn_datawarehouse=None):
+        json_to_table = """
+        select 														       tweet_id
+            ,(tweet_json #>>'{}')::jsonb ->> 'created_at' 				as created_at
+            ,(tweet_json #>>'{}')::jsonb ->> 'truncated' 				as is_truncated
+            ,(tweet_json #>>'{}')::jsonb ->> 'text' 					as tweet_text
+            ,(tweet_json #>>'{}')::jsonb -> 'user' ->> 'location' 		as tweet_location
+            ,(tweet_json #>>'{}')::jsonb -> 'user' ->> 'description' 	as description
+        from data_lake.twitter_data
+        """
+
+        insert_into_weather = """
+        insert into data_warehouse.twitter (tweet_id, created_at, is_truncated, tweet_text, tweet_location, description)
+        values ((%s), (%s), (%s), (%s), (%s), (%s)) ON CONFLICT ON CONSTRAINT twitter_un DO NOTHING;
+        """
+
+        result = conn_datalake.execute(json_to_table)
+        generator = Psql.query_results_generator(result.fetchall())
+        for row in generator:
+            print(row)
+            conn_datawarehouse.execute(insert_into_weather, row)
+
+    @staticmethod
+    def generate_analytics_data():
+        ...
+
+
 def main():
     """For Testing purposes"""
-    with Psql() as conn:
+    with Psql(db_name="data_lake", host="0.0.0.0", port=5433) as conn:
         res = conn.execute("SELECT version();")
         print(res.rowcount)
 
