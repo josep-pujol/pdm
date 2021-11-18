@@ -1,11 +1,13 @@
 import os
-from typing import Union, ValuesView
 import urllib
-from sqlalchemy import create_engine
-from psycopg2.extras import Json
-from psycopg2 import OperationalError
+from typing import Union
 
 from dotenv import load_dotenv
+from psycopg2 import OperationalError
+from psycopg2.extras import Json
+from sqlalchemy import create_engine
+
+from deps.sentiment_analysis import get_sentiment_score  # TODO: how to avoid this
 
 load_dotenv()
 
@@ -32,7 +34,7 @@ class Psql:
         self.__handle_miss_params__()
 
     def __handle_miss_params__(self):
-        if not (all((self.host, self.port, self.usr, self.pwd, self.db_name))):
+        if not all((self.host, self.port, self.usr, self.pwd, self.db_name)):
             raise ValueError("Missing value(s) to connect to db")
 
     def __repr__(self):
@@ -88,11 +90,14 @@ class Psql:
 
     @staticmethod
     def query_results_generator(query_results=None):
+        """Useful to tackle one query result at a time"""
         for row in query_results:
             yield row
 
     @staticmethod
     def sync_weather_dl2dw(conn_datalake=None, conn_datawarehouse=None):
+        """Gets data from the data lake in tabular format and inserts
+        the data in the data warehouse. Duplicate values are ignored"""
         json_to_table = """
         select                                                                             weather_id
             ,(weather_json #>> '{}')::jsonb -> 'location' ->> 'name' 					as weather_location
@@ -116,6 +121,8 @@ class Psql:
 
     @staticmethod
     def sync_twitter_dl2dw(conn_datalake=None, conn_datawarehouse=None):
+        """Gets data from the data lake in tabular format and inserts
+        the data in the data warehouse. Duplicate values are ignored"""
         json_to_table = """
         select 														       tweet_id
             ,(tweet_json #>>'{}')::jsonb ->> 'created_at' 				as created_at
@@ -131,15 +138,62 @@ class Psql:
         values ((%s), (%s), (%s), (%s), (%s), (%s)) ON CONFLICT ON CONSTRAINT twitter_un DO NOTHING;
         """
 
-        result = conn_datalake.execute(json_to_table)
-        generator = Psql.query_results_generator(result.fetchall())
+        results = conn_datalake.execute(json_to_table)
+        generator = Psql.query_results_generator(results.fetchall())
         for row in generator:
             print(row)
             conn_datawarehouse.execute(insert_into_weather, row)
 
     @staticmethod
-    def generate_analytics_data():
-        ...
+    def generate_analytics_data(conn_datawarehouse=None):
+        """Mixes data from Twitter and Weather tables into a better
+        format aimed at data analytics"""
+        generate_analytics = """
+        select 					   t.tweet_id 
+	        ,w.weather_id   	as tweet_day
+	        ,w.detailed_status  as weather_status
+	        ,t.tweet_text 		as tweet_text 
+        from data_warehouse.twitter t
+        inner join data_warehouse.weather w on to_char(to_date(created_at, 'Dy Mon DD HH24:MI:SS TZHTZM YYYY'), 'YYYY-MM-DD') = w.weather_id ;
+        """
+        insert_analytics = """
+        insert into data_warehouse.sentiment_analysis (tweet_id, tweet_day, weather_status, tweet_text)
+        values ((%s), (%s), (%s), (%s)) ON CONFLICT ON CONSTRAINT sentiment_analysis_un DO NOTHING
+        """
+
+        results = conn_datawarehouse.execute(generate_analytics)
+        generator = Psql.query_results_generator(results.fetchall())
+        for row in generator:
+            print(row)
+            conn_datawarehouse.execute(insert_analytics, row)
+
+    @staticmethod
+    def generate_sentiment_analysis_score(conn_datawarehouse=None):
+        """Check for missing sentiment analysis scores, generates them and
+        stores them in the data_warehouse.sentiment_analysis table"""
+
+        rows_to_analyse = """
+        select tweet_id 
+            ,tweet_text 
+        from data_warehouse.sentiment_analysis sa 
+        where tweet_text is not null and tweet_sentiment is null;
+        """
+        update_analytics = """
+        update data_warehouse.sentiment_analysis 
+        set tweet_sentiment = (%s)
+        where tweet_id = (%s); 
+        """
+        results = conn_datawarehouse.execute(rows_to_analyse)
+        generator = Psql.query_results_generator(results.fetchall())
+        for tweet_id, text in generator:
+            try:
+                analysis_score = get_sentiment_score(text)
+                conn_datawarehouse.execute(update_analytics, [analysis_score, tweet_id])
+            except Exception as err:
+                print(
+                    f"Exception while generating sentiment analysis score for tweet_id: {tweet_id}\n",
+                    err,
+                )
 
 
 def main():

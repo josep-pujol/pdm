@@ -1,19 +1,19 @@
 import json
 from datetime import date, datetime, timedelta
 
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-
 from deps.psql_api import Psql
 from deps.twitter_api import TwitterClient
 from deps.weather_api import get_weather
+
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+
 
 # These args will get passed on to each operator
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
 }
-
 
 with DAG(
     'dag_python_test',
@@ -33,7 +33,8 @@ with DAG(
         """calls the Twitter API to fetch tweets and then store results in postgres-dw"""
         yesterday = str(date.today() - timedelta(days=-1))
         api = TwitterClient()
-        tweets = api.get_tweets(query="", count=10000, geo="41.3850639,2.1734035,5km", lang="en", until=yesterday)  # center of Barcelona plus 5km radius  41.3850639, 2.1734035, 5km
+        # geo parameter: center of Barcelona plus 5km radius  41.3850639, 2.1734035, 5km
+        tweets = api.get_tweets(query="", count=10000, geo="41.3850639,2.1734035,5km", lang="en", until=yesterday)
         with Psql(db_name="data_lake")  as conn:
             for t in tweets:
                 print(t.id)
@@ -56,12 +57,23 @@ with DAG(
             with Psql(db_name="warehouse")  as conn_dw:
                 Psql.sync_weather_dl2dw(conn_dl, conn_dw)
         return "Weather data synchronized"
-    
+
     def sync_twitter():
         with Psql(db_name="data_lake")  as conn_dl:
             with Psql(db_name="warehouse")  as conn_dw:
                 Psql.sync_twitter_dl2dw(conn_dl, conn_dw)
         return "Twitter data synchronized"
+
+    def generate_analytics():
+        with Psql(db_name="warehouse")  as conn_dw:
+            Psql.generate_analytics_data(conn_dw)
+        return "Analytics data generated"
+
+    def generate_analytics_sentiment_analysis_score():
+        with Psql(db_name="warehouse")  as conn_dw:
+            Psql.generate_sentiment_analysis_score(conn_dw)
+        return "Sentiment analysis scores generated"
+
 
     t1 = PythonOperator(
         task_id='print_context',
@@ -89,7 +101,20 @@ with DAG(
         python_callable=sync_weather
     )
 
+    t6 = PythonOperator(
+        task_id='generate_analytics',
+        python_callable=generate_analytics
+    )
 
-    t1 >> [t2, t3] 
+    t7 = PythonOperator(
+        task_id='generate_analytics_sentiment_analysis_score',
+        python_callable=generate_analytics_sentiment_analysis_score
+    )
+
+
+    t1 >> [t2, t3]
     t2 >> t4
     t3 >> t5
+    t4 >> t6
+    t5 >> t6
+    t6 >> t7
