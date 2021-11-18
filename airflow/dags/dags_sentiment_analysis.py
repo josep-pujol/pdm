@@ -16,12 +16,12 @@ default_args = {
 }
 
 with DAG(
-    'dag_python_test',
+    'dags_sentiment_analysis',
     default_args=default_args,
-    description='First version of DAG to fetch Tweets and store them in Postgres',
+    description='Fetches data from Twitter and Open Weather Map and performs a sentiment analysis of the tweets',
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['test'],
+    # tags=['test'],
 ) as dag:
 
     def print_context(context):
@@ -30,7 +30,7 @@ with DAG(
         return "Context printed"
 
     def fetch_tweets():
-        """calls the Twitter API to fetch tweets and then store results in postgres-dw"""
+        """Calls the Twitter API to fetch tweets and then store results in postgres-dw"""
         yesterday = str(date.today() - timedelta(days=-1))
         api = TwitterClient()
         # geo parameter: center of Barcelona plus 5km radius  41.3850639, 2.1734035, 5km
