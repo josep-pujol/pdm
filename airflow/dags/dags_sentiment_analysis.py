@@ -7,6 +7,7 @@ from deps.weather_api import get_weather
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.providers.postgres.operators.postgres import PostgresOperator
 
 # These args will get passed on to each operator
 default_args = {
@@ -54,19 +55,14 @@ with DAG(
     def sync_weather():
         with Psql(db_name="data_lake")  as conn_dl:
             with Psql(db_name="warehouse")  as conn_dw:
-                Psql.sync_weather_dl2dw(conn_dl, conn_dw)
+                Psql.sync_weather_dl2dw(conn_datalake=conn_dl, conn_datawarehouse=conn_dw)
         return "Weather data synchronized"
 
     def sync_twitter():
         with Psql(db_name="data_lake")  as conn_dl:
             with Psql(db_name="warehouse")  as conn_dw:
-                Psql.sync_twitter_dl2dw(conn_dl, conn_dw)
+                Psql.sync_twitter_dl2dw(conn_datalake=conn_dl, conn_datawarehouse=conn_dw)
         return "Twitter data synchronized"
-
-    def generate_analytics():
-        with Psql(db_name="warehouse")  as conn_dw:
-            Psql.generate_analytics_data(conn_dw)
-        return "Analytics data generated"
 
     def generate_analytics_sentiment_analysis_score():
         with Psql(db_name="warehouse")  as conn_dw:
@@ -100,8 +96,9 @@ with DAG(
         python_callable=sync_weather
     )
 
-    generateAnalytics = PostgresOperator(
-        task_id='generate_analyticsV2',
+    #  Mixes data from Twitter and Weather tables into a better format aimed at data analytics
+    generateAnalytics = PostgresOperator(  # TODO: did setup connection manually in Airflow UI. How to do it programatically?
+        task_id='generate_analytics',
         postgres_conn_id="postgres_warehouse",
         sql="sql/generate_analytics_data.sql"
     )
