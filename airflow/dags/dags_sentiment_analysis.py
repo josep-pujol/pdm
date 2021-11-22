@@ -8,7 +8,6 @@ from deps.weather_api import get_weather
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
-
 # These args will get passed on to each operator
 default_args = {
     'owner': 'airflow',
@@ -75,46 +74,47 @@ with DAG(
         return "Sentiment analysis scores generated"
 
 
-    t1 = PythonOperator(
+    printContext = PythonOperator(
         task_id='print_context',
         python_callable=print_context,
         op_kwargs={"context": "FETCHING DATA"},
     )
 
-    t2 = PythonOperator(
+    fetchTweets = PythonOperator(
         task_id='fetch_tweets',
         python_callable=fetch_tweets,
     )
 
-    t3 = PythonOperator(
+    fetchWeather = PythonOperator(
         task_id='fetch_weather',
         python_callable=fetch_weather,
     )
 
-    t4 = PythonOperator(
+    syncTwitter = PythonOperator(
         task_id='sync_twitter',
         python_callable=sync_twitter
     )
 
-    t5 = PythonOperator(
+    syncWeather = PythonOperator(
         task_id='sync_weather',
         python_callable=sync_weather
     )
 
-    t6 = PythonOperator(
-        task_id='generate_analytics',
-        python_callable=generate_analytics
+    generateAnalytics = PostgresOperator(
+        task_id='generate_analyticsV2',
+        postgres_conn_id="postgres_warehouse",
+        sql="sql/generate_analytics_data.sql"
     )
 
-    t7 = PythonOperator(
+    generateAnalyticsSentimentAnalysisScore = PythonOperator(
         task_id='generate_analytics_sentiment_analysis_score',
         python_callable=generate_analytics_sentiment_analysis_score
     )
 
 
-    t1 >> [t2, t3]
-    t2 >> t4
-    t3 >> t5
-    t4 >> t6
-    t5 >> t6
-    t6 >> t7
+    printContext >> [fetchTweets, fetchWeather]
+    fetchTweets >> syncTwitter
+    fetchWeather >> syncWeather
+    syncTwitter >> generateAnalytics
+    syncWeather >> generateAnalytics
+    generateAnalytics >> generateAnalyticsSentimentAnalysisScore
