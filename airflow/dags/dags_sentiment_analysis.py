@@ -51,6 +51,14 @@ with DAG(
                 )
         return "Tweets fetched and stored in postgres-dw"
 
+    def sync_twitter():
+        with Psql(db_name="data_lake") as conn_dl:
+            with Psql(db_name="warehouse") as conn_dw:
+                Psql.sync_twitter_dl2dw(
+                    conn_datalake=conn_dl, conn_datawarehouse=conn_dw
+                )
+        return "Twitter data synchronized"
+
     def fetch_weather():
         weather = get_weather(owm_location="Barcelona,ES").to_dict()
         with Psql(db_name="data_lake") as conn:
@@ -63,21 +71,13 @@ with DAG(
             )
         return "Current Weather fetched and stored in postgres-dw"
 
-    def sync_weather():
-        with Psql(db_name="data_lake") as conn_dl:
-            with Psql(db_name="warehouse") as conn_dw:
-                Psql.sync_weather_dl2dw(
-                    conn_datalake=conn_dl, conn_datawarehouse=conn_dw
-                )
-        return "Weather data synchronized"
-
-    def sync_twitter():
-        with Psql(db_name="data_lake") as conn_dl:
-            with Psql(db_name="warehouse") as conn_dw:
-                Psql.sync_twitter_dl2dw(
-                    conn_datalake=conn_dl, conn_datawarehouse=conn_dw
-                )
-        return "Twitter data synchronized"
+    # def sync_weather():
+    #     with Psql(db_name="data_lake") as conn_dl:
+    #         with Psql(db_name="warehouse") as conn_dw:
+    #             Psql.sync_weather_dl2dw(
+    #                 conn_datalake=conn_dl, conn_datawarehouse=conn_dw
+    #             )
+    #     return "Weather data synchronized"
 
     def generate_analytics_sentiment_analysis_score():
         with Psql(db_name="warehouse") as conn_dw:
@@ -102,10 +102,14 @@ with DAG(
 
     syncTwitter = PythonOperator(task_id="sync_twitter", python_callable=sync_twitter)
 
-    syncWeather = PythonOperator(task_id="sync_weather", python_callable=sync_weather)
+    syncWeather = PostgresOperator(
+        task_id="sync_weather",
+        postgres_conn_id="postgres_warehouse",
+        sql="sql/sync_weather_dl2dw.sql",
+    )
 
     #  Mixes data from Twitter and Weather tables into a better format aimed at data analytics
-    generateAnalytics = PostgresOperator(  # TODO: did setup connection manually in Airflow UI. How to do it programatically?
+    generateAnalytics = PostgresOperator(  # TODO: did setup connection manually in Airflow UI. Do it programatically.
         task_id="generate_analytics",
         postgres_conn_id="postgres_warehouse",
         sql="sql/generate_analytics_data.sql",

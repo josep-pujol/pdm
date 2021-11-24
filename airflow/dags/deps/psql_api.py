@@ -73,7 +73,7 @@ class Psql:
         print(f"Connection to {self.db_name} closed")
 
     @staticmethod
-    def insert_json(connection, schema_table_name, json_data, sql_constraint=None):
+    def insert_json(connection, schema_table_name, json_data, sql_constraint=None):  # TODO: refractor
         """insert data in json format into a table"""
         cols = list(json_data.keys())
         insert_sql = "INSERT INTO %s (%s) " % (schema_table_name, ", ".join(cols))
@@ -95,31 +95,6 @@ class Psql:
         """Useful to tackle one query result at a time"""
         for row in query_results:
             yield row
-
-    @staticmethod
-    def sync_weather_dl2dw(conn_datalake=None, conn_datawarehouse=None):
-        """Gets data from the data lake in tabular format and inserts
-        the data in the data warehouse. Duplicate values are ignored"""
-        json_to_table = """
-        select                                                                             weather_id
-            ,(weather_json #>> '{}')::jsonb -> 'location' ->> 'name' 					as weather_location
-            ,(weather_json #>> '{}')::jsonb -> 'weather' ->> 'detailed_status' 			as detailed_status
-            ,(weather_json #>> '{}')::jsonb -> 'weather' ->> 'humidity' 				as humidity
-            ,(weather_json #>> '{}')::jsonb -> 'weather' -> 'pressure' ->> 'press'		as pressure
-            ,(weather_json #>> '{}')::jsonb -> 'weather' -> 'temperature' ->> 'temp'	as temperature_kelvins
-        from data_lake.weather_data;
-        """
-
-        insert_into_weather = """
-        insert into data_warehouse.weather (weather_id, weather_location, detailed_status, humidity, pressure, temperature_kelvins)
-        values ((%s), (%s), (%s), (%s), (%s), (%s)) ON CONFLICT ON CONSTRAINT weather_un DO NOTHING;
-        """
-
-        result = conn_datalake.execute(json_to_table)
-        generator = Psql.query_results_generator(result.fetchall())
-        for row in generator:
-            print(row)
-            conn_datawarehouse.execute(insert_into_weather, row)
 
     @staticmethod
     def sync_twitter_dl2dw(conn_datalake=None, conn_datawarehouse=None):
