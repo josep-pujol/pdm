@@ -1,3 +1,4 @@
+import json
 import os
 import urllib
 from typing import Union
@@ -7,7 +8,9 @@ from psycopg2 import OperationalError
 from psycopg2.extras import Json
 from sqlalchemy import create_engine
 
-from deps.sentiment_analysis import get_sentiment_score  # TODO: how to avoid having this functino in this module?
+from deps.sentiment_analysis import (
+    get_sentiment_score,
+)  # TODO: how to avoid having this function in this module
 
 load_dotenv()
 
@@ -49,7 +52,7 @@ class Psql:
             encoded_pwd = urllib.parse.quote_plus(self.pwd)
             return (
                 f"postgresql://{self.usr}:{encoded_pwd}"
-                f"@{self.host}:{self.port}/" #{self.db_name}"
+                f"@{self.host}:{self.port}/{self.db_name}"
             )
 
         def get_conn(connection_string: str):
@@ -64,41 +67,27 @@ class Psql:
         conn_string = build_conn_string()
         return get_conn(conn_string)
 
-    # Parameters " exc_type, exc_value, exc_traceback" needed when tearing down class
+    # Parameters "exc_type, exc_value, exc_traceback" needed when tearing down class
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self.conn_obj.close()
         print(f"Connection to {self.db_name} closed")
 
-
-
-#     def insert_json(insert_sql, json_data):
-#         connection.execute(insert_sql, [Json(json_data)])
-
-
-# json_data=    [{tweet_id: "asdfaf", tweet_text:"sadfasdfasdffas"}, {tweet_id: "asdfaf", tweet_text:"sadfasdfasdffas"},]
-
-
-
-
-
     @staticmethod
-    def insert_json_tweet(connection=None, tweet_id=None, tweet_json=None):
-        """insert into postgres-dw a tweet in json format"""
-        try:
-            connection.execute(
-                "insert into data_lake.twitter_data (tweet_id, tweet_json) values ((%s), (%s)) ON CONFLICT ON CONSTRAINT twitter_data_un DO NOTHING;",
-                [tweet_id, Json(tweet_json)],
+    def insert_json(connection, schema_table_name, json_data, sql_constraint=None):
+        """insert data in json format into a table"""
+        cols = list(json_data.keys())
+        insert_sql = "INSERT INTO %s (%s) " % (schema_table_name, ", ".join(cols))
+        values_sql = "VALUES ((%s), (%s)) "
+        constraint_sql = ""
+        if sql_constraint:
+            constraint_sql = "ON CONFLICT ON CONSTRAINT %s DO NOTHING" % (
+                sql_constraint
             )
-        except Exception as err:
-            print("Exception while executing db query: ", err)
+        sql = insert_sql + values_sql + constraint_sql + ";"
 
-    @staticmethod
-    def insert_json_weather(connection=None, weather_id=None, weather_json=None):
-        """insert into postgres-dw data fetched from weather forecast api in json format"""
         try:
             connection.execute(
-                "insert into data_lake.weather_data (weather_id, weather_json) values ((%s), (%s)) ON CONFLICT ON CONSTRAINT weather_data_un DO NOTHING;",
-                [weather_id, Json(weather_json)],
+                sql, [json_data[cols[0]], Json(json.dumps(json_data[cols[1]]))]
             )
         except Exception as err:
             print("Exception while executing db query: ", err)
@@ -145,7 +134,7 @@ class Psql:
             ,(tweet_json #>>'{}')::jsonb ->> 'text' 					as tweet_text
             ,(tweet_json #>>'{}')::jsonb -> 'user' ->> 'location' 		as tweet_location
             ,(tweet_json #>>'{}')::jsonb -> 'user' ->> 'description' 	as description
-        from data_lake.twitter_data
+        from data_lake.twitter_data;
         """
 
         insert_into_weather = """
@@ -191,13 +180,31 @@ class Psql:
 def main():
     """For Testing purposes"""
     print("stop")
-    with Psql(host="0.0.0.0", port=5433) as conn:
-        # res = conn.execute("SELECT version();")
-        # print(res.fetchone() )
-        res = conn.execute("SELECT * FROM data_lake.weather_data;")
-        print(res.rowcount)
-    import psycopg2
-    res = psycopg2.connect
+    # with Psql(db_name="data_lake", host="0.0.0.0", port=5433) as conn:
+    #     res = conn.execute("SELECT version();")
+    #     print(res.fetchone() )
+    # res = conn.execute("SELECT * FROM data_lake.weather_data;")
+    # print(res.rowcount)
+    with Psql(db_name="data_lake", host="0.0.0.0", port=5433) as conn:
+        tweets = [
+            {
+                "id": "12312134",
+                "text": "asdfasd af wlekjflw.2341234!@#$!@$%!$%!@$#!%$ Australia 🇦🇺❤️ @ http://asdf.com   😂😭 ",
+            },
+            {
+                "id": "22222123",
+                "text": "2asdfasd af wlekjflw.2341234!@#$!@$%!$%!@$#!%$ Australia 🇦🇺❤️ @ http://asdf.com  😂😭 ",
+            },
+        ]
+        for t in tweets:
+            print(t)
+            json_data = {"tweet_id": "1", "tweet_json": tweets}  # str(date.today())
+            Psql.insert_json(
+                connection=conn,
+                schema_table_name="data_lake.twitter_data",
+                json_data=json_data,
+            )
+
 
 if __name__ == "__main__":
     main()
