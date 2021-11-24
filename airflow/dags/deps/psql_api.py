@@ -78,12 +78,10 @@ class Psql:
         cols = list(json_data.keys())
         insert_sql = "INSERT INTO %s (%s) " % (schema_table_name, ", ".join(cols))
         values_sql = "VALUES ((%s), (%s)) "
-        constraint_sql = ""
+        sql = insert_sql + values_sql
         if sql_constraint:
-            constraint_sql = "ON CONFLICT ON CONSTRAINT %s DO NOTHING" % (
-                sql_constraint
-            )
-        sql = insert_sql + values_sql + constraint_sql + ";"
+            sql = f"{sql} ON CONFLICT ON CONSTRAINT {sql_constraint} DO NOTHING"
+        sql = sql + ";"
 
         try:
             connection.execute(
