@@ -97,31 +97,6 @@ class Psql:
             yield row
 
     @staticmethod
-    def sync_twitter_dl2dw(conn_datalake=None, conn_datawarehouse=None):
-        """Gets data from the data lake in tabular format and inserts
-        the data in the data warehouse. Duplicate values are ignored"""
-        json_to_table = """
-        select 														       tweet_id
-            ,(tweet_json #>>'{}')::jsonb ->> 'created_at' 				as created_at
-            ,(tweet_json #>>'{}')::jsonb ->> 'truncated' 				as is_truncated
-            ,(tweet_json #>>'{}')::jsonb ->> 'text' 					as tweet_text
-            ,(tweet_json #>>'{}')::jsonb -> 'user' ->> 'location' 		as tweet_location
-            ,(tweet_json #>>'{}')::jsonb -> 'user' ->> 'description' 	as description
-        from data_lake.twitter_data;
-        """
-
-        insert_into_weather = """
-        insert into data_warehouse.twitter (tweet_id, created_at, is_truncated, tweet_text, tweet_location, description)
-        values ((%s), (%s), (%s), (%s), (%s), (%s)) ON CONFLICT ON CONSTRAINT twitter_un DO NOTHING;
-        """
-
-        results = conn_datalake.execute(json_to_table)
-        generator = Psql.query_results_generator(results.fetchall())
-        for row in generator:
-            print(row)
-            conn_datawarehouse.execute(insert_into_weather, row)
-
-    @staticmethod
     def generate_sentiment_analysis_score(conn_datawarehouse=None):
         """Check for missing sentiment analysis scores, generates them and
         stores them in the data_warehouse.sentiment_analysis table"""

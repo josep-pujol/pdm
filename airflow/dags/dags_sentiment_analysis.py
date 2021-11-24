@@ -51,14 +51,6 @@ with DAG(
                 )
         return "Tweets fetched and stored in postgres-dw"
 
-    def sync_twitter():
-        with Psql(db_name="data_lake") as conn_dl:
-            with Psql(db_name="warehouse") as conn_dw:
-                Psql.sync_twitter_dl2dw(
-                    conn_datalake=conn_dl, conn_datawarehouse=conn_dw
-                )
-        return "Twitter data synchronized"
-
     def fetch_weather():
         weather = get_weather(owm_location="Barcelona,ES").to_dict()
         with Psql(db_name="data_lake") as conn:
@@ -70,14 +62,6 @@ with DAG(
                 json_data=json_data,
             )
         return "Current Weather fetched and stored in postgres-dw"
-
-    # def sync_weather():
-    #     with Psql(db_name="data_lake") as conn_dl:
-    #         with Psql(db_name="warehouse") as conn_dw:
-    #             Psql.sync_weather_dl2dw(
-    #                 conn_datalake=conn_dl, conn_datawarehouse=conn_dw
-    #             )
-    #     return "Weather data synchronized"
 
     def generate_analytics_sentiment_analysis_score():
         with Psql(db_name="warehouse") as conn_dw:
@@ -100,7 +84,11 @@ with DAG(
         python_callable=fetch_weather,
     )
 
-    syncTwitter = PythonOperator(task_id="sync_twitter", python_callable=sync_twitter)
+    syncTwitter = PostgresOperator(
+        task_id="sync_twitter",
+        postgres_conn_id="postgres_warehouse",
+        sql="sql/sync_twitter_dl2dw.sql",
+    )
 
     syncWeather = PostgresOperator(
         task_id="sync_weather",

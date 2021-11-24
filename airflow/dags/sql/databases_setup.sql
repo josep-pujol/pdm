@@ -53,7 +53,7 @@ CREATE TABLE data_warehouse.sentiment_analysis (
 	CONSTRAINT sentiment_analysis_un UNIQUE (tweet_id)
 );
 
--- # TODO: programatically add connection to data_warehouse and data_lake in Airflow
+-- # TODO: programatically add connections data_warehouse and data_lake into Airflow
 
 
 
