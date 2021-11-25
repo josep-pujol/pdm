@@ -3,6 +3,7 @@ from typing import ValuesView
 from pyowm import OWM
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 
@@ -11,12 +12,12 @@ try:
     owm = OWM(api_key)
     mgr = owm.weather_manager()
 except Exception as err:
-    if not(api_key):
+    if not (api_key):
         raise ValueError("Missing API Key")
     print("Error: Owm authentication failed: ", err)
 
 
-def get_weather(owm_location: str="Barcelona,ES"):
+def get_weather(owm_location: str = "Barcelona,ES"):
     """Search for current weather in a OpenWeatherMap defined location"""
     return mgr.weather_at_place(owm_location)
 
