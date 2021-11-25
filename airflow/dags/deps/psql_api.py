@@ -1,16 +1,14 @@
 import json
 import os
 import urllib
-from typing import Union
+from typing import Iterable, List, Union
 
 from dotenv import load_dotenv
 from psycopg2 import OperationalError
 from psycopg2.extras import Json
 from sqlalchemy import create_engine
 
-from deps.sentiment_analysis import (
-    get_sentiment_score,
-)  # TODO: how to avoid having this function in this module
+ # TODO: how to avoid having this function in this module
 
 load_dotenv()
 
@@ -91,6 +89,20 @@ class Psql:
             print("Exception while executing db query: ", err)
 
     @staticmethod
+    def insert_rows(connection, schema_table_name: str, data_to_insert: List[dict]) -> None:
+        column_names = ", ".join(data_to_insert[0].keys())
+        values = "%(" + ")s, %(".join(data_to_insert[0].keys()) + ")s"
+        insert_sql = f"INSERT INTO {schema_table_name} ({column_names}) "
+        values_sql = f"VALUES ({values});"
+
+        # https://wiki.postgresql.org/wiki/Psycopg2_Tutorial
+        # https://www.semicolonworld.com/question/43429/psycopg2-insert-multiple-rows-with-one-query
+        try:
+            connection.execute(insert_sql + values_sql, data_to_insert)
+        except Exception as err:
+            print("Exception while executing db query: ", err)
+    
+    @staticmethod
     def query_results_generator(query_results=None):
         """Useful to tackle one query result at a time"""
         for row in query_results:
@@ -131,28 +143,8 @@ def main():
     # with Psql(db_name="data_lake", host="0.0.0.0", port=5433) as conn:
     #     res = conn.execute("SELECT version();")
     #     print(res.fetchone() )
-    # res = conn.execute("SELECT * FROM data_lake.weather_data;")
-    # print(res.rowcount)
-    with Psql(db_name="data_lake", host="0.0.0.0", port=5433) as conn:
-        tweets = [
-            {
-                "id": "12312134",
-                "text": "asdfasd af wlekjflw.2341234!@#$!@$%!$%!@$#!%$ Australia 🇦🇺❤️ @ http://asdf.com   😂😭 ",
-            },
-            {
-                "id": "22222123",
-                "text": "2asdfasd af wlekjflw.2341234!@#$!@$%!$%!@$#!%$ Australia 🇦🇺❤️ @ http://asdf.com  😂😭 ",
-            },
-        ]
-        for t in tweets:
-            print(t)
-            json_data = {"tweet_id": "1", "tweet_json": tweets}  # str(date.today())
-            Psql.insert_json(
-                connection=conn,
-                schema_table_name="data_lake.twitter_data",
-                json_data=json_data,
-            )
-
+    #     res = conn.execute("SELECT * FROM data_lake.weather_data;")
+    #     print(res.rowcount)
 
 if __name__ == "__main__":
     main()
