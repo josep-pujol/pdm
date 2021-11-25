@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from deps.psql_api import Psql
 from deps.twitter_api import TwitterClient
 from deps.weather_api import get_weather
-from deps.sentiment_analysis import get_sentiment_score
+
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator

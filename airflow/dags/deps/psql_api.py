@@ -2,7 +2,7 @@ import json
 import os
 import urllib
 from typing import Iterable, List, Union
-
+from deps.sentiment_analysis import get_sentiment_score
 from dotenv import load_dotenv
 from psycopg2 import OperationalError
 from psycopg2.extras import Json
