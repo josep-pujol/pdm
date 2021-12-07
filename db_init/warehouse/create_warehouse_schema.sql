@@ -1,0 +1,1 @@
+CREATE SCHEMA IF NOT EXISTS data_warehouse2 AUTHORIZATION warehouse;

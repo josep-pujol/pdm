@@ -108,11 +108,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - ./mountpoint/postgresql/data:/var/lib/postgresql/data
+      - ./db_init/:/db_init
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "warehouse"]
       interval: 10s
       retries: 5
     restart: always
+    command: ["bash", "/db_init/init_dbs.sh"]
 
   redis:
     image: redis:latest
