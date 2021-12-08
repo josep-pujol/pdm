@@ -99,7 +99,10 @@ services:
     restart: always
 
   postgres-dw:
-    image: postgres:13
+    # image: postgres:13
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     ports:
       - 5433:5432
     environment:
@@ -108,6 +111,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - ./mountpoint/postgresql/data:/var/lib/postgresql/data
+      - ./mountpoint/dags/deps:/dags_python_dependencies
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "warehouse"]
       interval: 10s
