@@ -69,7 +69,9 @@ class Psql:
         print(f"Connection to {self.db_name} closed")
 
     @staticmethod
-    def insert_json(connection, schema_table_name, json_data, sql_constraint=None):  # TODO: refractor
+    def insert_json(
+        connection, schema_table_name, json_data, sql_constraint=None
+    ):  # TODO: refractor
         """insert data in json format into a table"""
         cols = list(json_data.keys())
         insert_sql = "INSERT INTO %s (%s) " % (schema_table_name, ", ".join(cols))
@@ -87,7 +89,9 @@ class Psql:
             print("Exception while executing db query: ", err)
 
     @staticmethod
-    def insert_rows(connection, schema_table_name: str, data_to_insert: List[dict]) -> None:
+    def insert_rows(
+        connection, schema_table_name: str, data_to_insert: List[dict]
+    ) -> None:
         column_names = ", ".join(data_to_insert[0].keys())
         values = "%(" + ")s, %(".join(data_to_insert[0].keys()) + ")s"
         insert_sql = f"INSERT INTO {schema_table_name} ({column_names}) "
@@ -99,7 +103,7 @@ class Psql:
             connection.execute(insert_sql + values_sql, data_to_insert)
         except Exception as err:
             print("Exception while executing db query: ", err)
-    
+
     @staticmethod
     def query_results_generator(query_results=None):
         """Useful to tackle one query result at a time"""
@@ -115,6 +119,7 @@ def main():
     #     print(res.fetchone() )
     #     res = conn.execute("SELECT * FROM data_lake.weather_data;")
     #     print(res.rowcount)
+
 
 if __name__ == "__main__":
     main()

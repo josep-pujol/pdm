@@ -7,7 +7,8 @@ try:
 except ImportError:
     import sys
     import subprocess
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'textblob'])
+
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "textblob"])
     from textblob import TextBlob
 
 
