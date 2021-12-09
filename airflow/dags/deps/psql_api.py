@@ -2,13 +2,11 @@ import json
 import os
 import urllib
 from typing import Iterable, List, Union
-from deps.sentiment_analysis import get_sentiment_score
 from dotenv import load_dotenv
 from psycopg2 import OperationalError
 from psycopg2.extras import Json
 from sqlalchemy import create_engine
 
- # TODO: how to avoid having this function in this module
 
 load_dotenv()
 
@@ -107,34 +105,6 @@ class Psql:
         """Useful to tackle one query result at a time"""
         for row in query_results:
             yield row
-
-    @staticmethod
-    def generate_sentiment_analysis_score(conn_datawarehouse=None):
-        """Check for missing sentiment analysis scores, generates them and
-        stores them in the data_warehouse.sentiment_analysis table"""
-
-        rows_to_analyse = """
-        select tweet_id 
-            ,tweet_text 
-        from data_warehouse.sentiment_analysis sa 
-        where tweet_text is not null and tweet_sentiment is null;
-        """
-        update_analytics = """
-        update data_warehouse.sentiment_analysis 
-        set tweet_sentiment = (%s)
-        where tweet_id = (%s); 
-        """
-        results = conn_datawarehouse.execute(rows_to_analyse)
-        generator = Psql.query_results_generator(results.fetchall())
-        for tweet_id, text in generator:
-            try:
-                analysis_score = get_sentiment_score(text)
-                conn_datawarehouse.execute(update_analytics, [analysis_score, tweet_id])
-            except Exception as err:
-                print(
-                    f"Exception while generating sentiment analysis score for tweet_id: {tweet_id}\n",
-                    err,
-                )
 
 
 def main():
