@@ -40,8 +40,8 @@ echo "pghost: "$PGHOST
 echo "pgdatabase: "$PGDATABASE
 
 
-# POSTGRES_HOST="0.0.0.0"
-# POSTGRES_PORT=5433
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5433
 
 
 
@@ -55,26 +55,28 @@ DATA LAKE
 "
 DATA_LAKE_DB="data_lake2"
 
-echo "TEST1"
-psql -d warehouse -U  warehouse -p 5432 -h "0.0.0.0" -c "SELECT version();"
-echo "TEST2"
-psql postgresql://warehouse:warehouse@0.0.0.0:5432/warehouse -c "SELECT version();"
+# echo "TEST1"
+# psql -d warehouse -U  warehouse -p 5432 -h "0.0.0.0" -c "SELECT version();"
+# echo "TEST2"
+# psql postgresql://warehouse:warehouse@0.0.0.0:5432/warehouse -c "SELECT version();"
 
-echo "TEST3"
-psql -d warehouse -U  warehouse -p 5432 -h "postgres-dw" -c "SELECT version();"
-echo "TEST4"
-psql postgresql://warehouse:warehouse@postgres-dw:5432/warehouse -c "SELECT version();"
+# echo "TEST3"
+# psql -d warehouse -U  warehouse -p 5432 -h "postgres-dw" -c "SELECT version();"
+# echo "TEST4"
+# psql postgresql://warehouse:warehouse@postgres-dw:5432/warehouse -c "SELECT version();"
 
-echo "TEST5"
-psql -d warehouse -U  warehouse -p 5432 -h 172.18.0.9 -c "SELECT version();"
-echo "TEST6"
-psql postgresql://warehouse:warehouse@172.18.0.9:5432/warehouse -c "SELECT version();"
+# echo "TEST5"
+# psql -d warehouse -U  warehouse -p 5432 -h 172.18.0.9 -c "SELECT version();"
+# echo "TEST6"
+# psql postgresql://warehouse:warehouse@172.18.0.9:5432/warehouse -c "SELECT version();"
+
+# echo "TEST7"
+# psql -d warehouse -U  warehouse -p 5432 -h "127.0.0.1" -c "SELECT version();"
+# echo "TEST8"
+# psql postgresql://warehouse:warehouse@127.0.0.1:5432/warehouse -c "SELECT version();"
 
 
-
-172.18.0.9
 # Create data_lake database  # https://zaiste.net/databases/postgresql/howtos/create-database-if-not-exists/
-psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB -tc "SELECT 1 FROM pg_database WHERE datname = '"$DATA_LAKE_DB"'" | grep -q 1 | psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB -c "CREATE DATABASE "$DATA_LAKE_DB
 psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB -tc "SELECT 1 FROM pg_database WHERE datname = '"$DATA_LAKE_DB"'" | grep -q 1 | psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB -c "CREATE DATABASE "$DATA_LAKE_DB
 
 # Create data_lake schema
@@ -111,23 +113,49 @@ psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_POR
 # -------------------------------------
 # -- CREATE FOREIGN DATABASE WRAPPER --
 # -------------------------------------
-# DATA_LAKE_FDW_SCHEMA="data_lake_fdw2"
-# # Create connection from the warehouse database to the data_lake database
-# psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$DATA_LAKE_DB --command="CREATE SCHEMA IF NOT EXISTS "$DATA_LAKE_FDW_SCHEMA";"
 
-# CREATE EXTENSION IF NOT EXISTS postgres_fdw2;
+echo " 
 
-# CREATE SERVER IF NOT EXISTS data_lake2 
-# FOREIGN DATA WRAPPER postgres_fdw2 
-# OPTIONS (dbname 'data_lake', port '5432', host 'localhost');
-
-# CREATE USER MAPPING IF NOT EXISTS FOR warehouse
-# SERVER data_lake2 
-# OPTIONS (user 'warehouse', password 'warehouse');  -- TODO: refractor, hide passwords
+FOREIGN DATABASE WRAPPER
+"
+DATA_LAKE_FDW_SCHEMA="data_lake_fdw2"
+WAREHOUSE_EXTENSION="postgres_fdw"
+DATA_LAKE_SERVER="server_data_lake2"
 
 
-# IMPORT FOREIGN SCHEMA data_lake2 FROM SERVER data_lake2 INTO data_lake_fdw2;
+# Create schema to store the connection
+psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB --command="CREATE SCHEMA IF NOT EXISTS "$DATA_LAKE_FDW_SCHEMA";"
 
-# -- # TODO: programatically add connections data_warehouse and data_lake into Airflow
+# Install extension 
+psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB --command="CREATE EXTENSION IF NOT EXISTS "$WAREHOUSE_EXTENSION";"
+
+# Creating server and user mappings
+psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB \
+  --command="CREATE SERVER IF NOT EXISTS "$DATA_LAKE_SERVER" FOREIGN DATA WRAPPER "$WAREHOUSE_EXTENSION" OPTIONS (dbname '"$DATA_LAKE_DB"', port '"$POSTGRES_PORT"', host '"$POSTGRES_HOST"');"
+
+psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB \
+  --command="CREATE USER MAPPING IF NOT EXISTS FOR "$POSTGRES_USER" SERVER "$DATA_LAKE_SERVER" OPTIONS (user '"$POSTGRES_USER"', password '"$POSTGRES_PASSWORD"');"
+
+# psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB \
+#   --command="GRANT USAGE ON "$DATA_LAKE_FDW_SCHEMA" TO "$POSTGRES_USER";"
+
+# echo " 
+# TEST
+# "
+# psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB \
+#   --command="select * from data_lake_fdw2.twitter_data;"
+
+# Create connection from the warehouse database to the data_lake database -- fake tables should appear
+psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB \
+  --command="IMPORT FOREIGN SCHEMA "$DATA_LAKE_DB" FROM SERVER "$DATA_LAKE_SERVER" INTO "$DATA_LAKE_FDW_SCHEMA";"
+
+echo "
+postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"
+echo "CREATE SCHEMA IF NOT EXISTS "$DATA_LAKE_FDW_SCHEMA";"
+echo "CREATE EXTENSION IF NOT EXISTS "$WAREHOUSE_EXTENSION";"
+echo "CREATE SERVER IF NOT EXISTS "$DATA_LAKE_SERVER" FOREIGN DATA WRAPPER "$WAREHOUSE_EXTENSION" OPTIONS (dbname '"$DATA_LAKE_DB"', port '"$POSTGRES_PORT"', host '"$POSTGRES_HOST"');"
+echo "CREATE USER MAPPING IF NOT EXISTS FOR "$POSTGRES_USER" SERVER "$DATA_LAKE_SERVER" OPTIONS (user '"$POSTGRES_USER"', password '"$POSTGRES_PASSWORD"');"
+echo "IMPORT FOREIGN SCHEMA "$DATA_LAKE_DB" FROM SERVER "$DATA_LAKE_SERVER" INTO "$DATA_LAKE_FDW_SCHEMA";"
+
 
 
