@@ -1,4 +1,15 @@
-from textblob import TextBlob
+# TODO: find alternative to install textblob in this file
+# install textblob if not installed, needed for sql script
+# to run in the postgres-dw container
+
+try:
+    from textblob import TextBlob
+except ImportError:
+    import sys
+    import subprocess
+
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "textblob"])
+    from textblob import TextBlob
 
 
 def get_sentiment_score(text):
