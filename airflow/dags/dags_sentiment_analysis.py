@@ -64,10 +64,6 @@ with DAG(
             )
         return "Current Weather fetched and stored in postgres-dw"
 
-    def generate_analytics_sentiment_analysis_score():
-        with Psql(db_name="warehouse") as conn_dw:
-            Psql.generate_sentiment_analysis_score(conn_dw)
-        return "Sentiment analysis scores generated"
 
     printContext = PythonOperator(
         task_id="print_context",
@@ -104,9 +100,10 @@ with DAG(
         sql="sql/generate_analytics_data.sql",
     )
 
-    generateAnalyticsSentimentAnalysisScore = PythonOperator(
+    generateAnalyticsSentimentAnalysisScore = PostgresOperator(
         task_id="generate_analytics_sentiment_analysis_score",
-        python_callable=generate_analytics_sentiment_analysis_score,
+        postgres_conn_id="postgres_warehouse",
+        sql="sql/generate_sentiment_analysis_score.sql",
     )
 
     printContext >> [fetchTweets, fetchWeather]

@@ -56,6 +56,7 @@ x-airflow-common:
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__API__AUTH_BACKEND: 'airflow.api.auth.backend.basic_auth'
+    AIRFLOW_CONN_POSTGRES_WAREHOUSE: ${AIRFLOW_CONN_POSTGRES_WAREHOUSE}
     # Twitter
     CONSUMER_KEY: ${CONSUMER_KEY}
     CONSUMER_SECRET: ${CONSUMER_SECRET}
@@ -90,6 +91,7 @@ services:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
+      AIRFLOW_CONN_POSTGRES_WAREHOUSE: ${AIRFLOW_CONN_POSTGRES_WAREHOUSE}
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
     healthcheck:
@@ -99,7 +101,10 @@ services:
     restart: always
 
   postgres-dw:
-    image: postgres:13
+    # image: postgres:13
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     ports:
       - 5433:5432
     environment:
@@ -109,6 +114,7 @@ services:
     volumes:
       - ./mountpoint/postgresql/data:/var/lib/postgresql/data
       - ./db_init/:/db_init
+      - ./mountpoint/dags/deps:/dags_python_dependencies  # need python scripts for plpython in this container
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "warehouse"]
       interval: 10s
