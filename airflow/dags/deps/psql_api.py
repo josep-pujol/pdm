@@ -1,7 +1,7 @@
 import json
 import os
 import urllib
-from typing import Iterable, List, Union
+from typing import List, Union
 from dotenv import load_dotenv
 from psycopg2 import OperationalError
 from psycopg2.extras import Json
@@ -69,46 +69,25 @@ class Psql:
         print(f"Connection to {self.db_name} closed")
 
     @staticmethod
-    def insert_json(
-        connection, schema_table_name, json_data, sql_constraint=None
-    ):  # TODO: refractor
-        """insert data in json format into a table"""
-        cols = list(json_data.keys())
-        insert_sql = "INSERT INTO %s (%s) " % (schema_table_name, ", ".join(cols))
-        values_sql = "VALUES ((%s), (%s)) "
+    def insert_rows(
+        connection, schema_table_name: str, data_to_insert: List[dict], sql_constraint=None
+    ) -> None:
+        """Generic method to insert a list of dictionaries into a table"""
+        # https://www.datacareer.ch/blog/improve-your-psycopg2-executions-for-postgresql-in-python/
+        # https://hakibenita.com/fast-load-data-python-postgresql
+        column_names = ", ".join(data_to_insert[0].keys())
+        values = "%(" + ")s, %(".join(data_to_insert[0].keys()) + ")s"
+        insert_sql = f"INSERT INTO {schema_table_name} ({column_names}) "
+        values_sql = f"VALUES ({values})"
         sql = insert_sql + values_sql
         if sql_constraint:
             sql = f"{sql} ON CONFLICT ON CONSTRAINT {sql_constraint} DO NOTHING"
         sql = sql + ";"
 
         try:
-            connection.execute(
-                sql, [json_data[cols[0]], Json(json.dumps(json_data[cols[1]]))]
-            )
+            connection.execute(sql, data_to_insert)
         except Exception as err:
             print("Exception while executing db query: ", err)
-
-    @staticmethod
-    def insert_rows(
-        connection, schema_table_name: str, data_to_insert: List[dict]
-    ) -> None:
-        column_names = ", ".join(data_to_insert[0].keys())
-        values = "%(" + ")s, %(".join(data_to_insert[0].keys()) + ")s"
-        insert_sql = f"INSERT INTO {schema_table_name} ({column_names}) "
-        values_sql = f"VALUES ({values});"
-
-        # https://wiki.postgresql.org/wiki/Psycopg2_Tutorial
-        # https://www.semicolonworld.com/question/43429/psycopg2-insert-multiple-rows-with-one-query
-        try:
-            connection.execute(insert_sql + values_sql, data_to_insert)
-        except Exception as err:
-            print("Exception while executing db query: ", err)
-
-    @staticmethod
-    def query_results_generator(query_results=None):
-        """Useful to tackle one query result at a time"""
-        for row in query_results:
-            yield row
 
 
 def main():
