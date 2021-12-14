@@ -33,6 +33,48 @@ class TwitterClient:
         except Exception as err:
             print("Error: Twitter Authentication Failed", str(err))
 
+    @staticmethod
+    def parse_tweet(tweet, tweet_parser=None) -> Any:
+        """parses a tweet if parser function is passed
+        otherwise just returns same object passed"""
+        if tweet_parser:
+            return tweet_parser(tweet)
+        else:
+            return tweet
+
+    def fetch_tweets(
+        self,
+        query: str = "",
+        count: int = 10,
+        geo: Union[str, None] = None,
+        lang: str = "en",
+        until: Union[str, None] = None,
+    ):
+        """Calls Tweepy api to fetch tweets as per parameters passed
+        """
+        try:
+            return self.api.search_tweets(
+                q=query, count=count, geocode=geo, lang=lang, until=until
+            )
+        except tweepy.TweepyException as err:
+            print("Error : " + str(err))
+            raise
+
+    @staticmethod
+    def remove_duplicate_tweets(tweets):
+        """To remove duplicate tweets or retweets"""
+        tweets_ids: Set[str] = set()
+        unique_tweets: List[Status] = []
+        for tweet in tweets:
+            tweets_ids.add(tweet.id_str)
+            if tweet.retweet_count > 0:
+                # if tweet has retweets, ensure that it is appended only once
+                if tweet.id_str not in tweets_ids:
+                    unique_tweets.append(tweet)
+            else:
+                unique_tweets.append(tweet)
+        return unique_tweets
+
     def get_tweets(
         self,
         query: str = "",
@@ -52,42 +94,26 @@ class TwitterClient:
         Returns:
             List of tweets
         """
-        tweets: List[Status] = []
-        tweets_ids: Set[str] = set()
-
-        def parse_tweet(tweet, tweet_parser=None) -> Any:
-            if tweet_parser:
-                return tweet_parser(tweet)
-            else:
-                return tweet
-
-        try:
-            fetched_tweets = self.api.search_tweets(
-                q=query, count=count, geocode=geo, lang=lang, until=until
-            )
-        except tweepy.TweepyException as err:
-            print("Error : " + str(err))
-
-        for tweet in fetched_tweets:
-            tweets_ids.add(tweet.id_str)
-            if tweet.retweet_count > 0:
-                # if tweet has retweets, ensure that it is appended only once
-                if tweet.id_str not in tweets_ids:
-                    tweets.append(parse_tweet(tweet=tweet, tweet_parser=tweet_parser))
-            else:
-                tweets.append(parse_tweet(tweet=tweet, tweet_parser=tweet_parser))
-
-        return tweets
+        fetched_tweets = self.fetch_tweets(
+            query=query, count=count, geo=geo, lang=lang, until=until
+        )
+        unique_tweets = TwitterClient.remove_duplicate_tweets(fetched_tweets)
+        if tweet_parser:
+            return [
+                TwitterClient.parse_tweet(tweet=tweet, tweet_parser=tweet_parser)
+                for tweet in unique_tweets
+            ]
+        return unique_tweets
 
 
 def main():
     """For testing purposes"""
     api = TwitterClient()
-    tweets = api.get_tweets(
-        query="", count=1000, geo="41.3850639,2.1734035,5km", until="2021-11-07"
-    )
     # 2.103621,41.343999,2.232702,41.449146  # https://boundingbox.klokantech.com/
     # center of Barcelona plus 5km radius  41.3850639, 2.1734035, 5km
+    tweets = api.get_tweets(
+        query="", count=1000, geo="41.3850639,2.1734035,5km", until="2021-12-14"
+    )
     print(tweets)
     print(f"Fetched {len(tweets)} tweets.")
 
