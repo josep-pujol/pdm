@@ -1,11 +1,8 @@
-import json
 import os
-import urllib
 from typing import List, Union
 from dotenv import load_dotenv
+import psycopg2
 from psycopg2 import OperationalError
-from psycopg2.extras import Json
-from sqlalchemy import create_engine
 
 
 load_dotenv()
@@ -43,25 +40,14 @@ class Psql:
 
     def __enter__(self):
         print(f"Connecting to {self.db_name}... ", end="")
-
-        def build_conn_string():
-            encoded_pwd = urllib.parse.quote_plus(self.pwd)
-            return (
-                f"postgresql://{self.usr}:{encoded_pwd}"
-                f"@{self.host}:{self.port}/{self.db_name}"
-            )
-
-        def get_conn(connection_string: str):
-            try:
-                engine = create_engine(connection_string)
-                self.conn_obj = engine.connect()
-            except OperationalError as err:
-                print("Exception while connecting to db: ", err)
-
-            return self.conn_obj
-
-        conn_string = build_conn_string()
-        return get_conn(conn_string)
+        self.conn_obj = psycopg2.connect(
+            host=self.host,
+            port=self.port,
+            user=self.usr,
+            password=self.pwd,
+            database=self.db_name,
+        )
+        return self.conn_obj
 
     # Parameters "exc_type, exc_value, exc_traceback" needed when tearing down class
     def __exit__(self, exc_type, exc_value, exc_traceback):
@@ -73,8 +59,6 @@ class Psql:
         connection, schema_table_name: str, data_to_insert: List[dict], sql_constraint=None
     ) -> None:
         """Generic method to insert a list of dictionaries into a table"""
-        # https://www.datacareer.ch/blog/improve-your-psycopg2-executions-for-postgresql-in-python/
-        # https://hakibenita.com/fast-load-data-python-postgresql
         column_names = ", ".join(data_to_insert[0].keys())
         values = "%(" + ")s, %(".join(data_to_insert[0].keys()) + ")s"
         insert_sql = f"INSERT INTO {schema_table_name} ({column_names}) "
@@ -85,19 +69,25 @@ class Psql:
         sql = sql + ";"
 
         try:
-            connection.execute(sql, data_to_insert)
+            cur = connection.cursor()
+            # https://www.datacareer.ch/blog/improve-your-psycopg2-executions-for-postgresql-in-python/
+            # https://hakibenita.com/fast-load-data-python-postgresql
+            psycopg2.extras.execute_batch(cur, sql, data_to_insert)
+            connection.commit()
         except Exception as err:
             print("Exception while executing db query: ", err)
+            raise
 
 
 def main():
     """For Testing purposes"""
     print("stop")
-    # with Psql(db_name="data_lake", host="0.0.0.0", port=5433) as conn:
-    #     res = conn.execute("SELECT version();")
-    #     print(res.fetchone() )
-    #     res = conn.execute("SELECT * FROM data_lake.weather_data;")
-    #     print(res.rowcount)
+    with Psql(db_name="data_lake", host="0.0.0.0", port=5433) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT version();")
+        print(cur.fetchone() )
+        cur.execute("SELECT * FROM data_lake.weather_data;")
+        print(cur.rowcount)
 
 
 if __name__ == "__main__":
