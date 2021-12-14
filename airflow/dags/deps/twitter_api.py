@@ -33,18 +33,6 @@ class TwitterClient:
         except Exception as err:
             print("Error: Twitter Authentication Failed", str(err))
 
-    @staticmethod
-    def clean_tweet_text(tweet: str) -> str:
-        """
-        Utility function to clean tweet text by removing links, special characters
-        using simple regex statements.
-        """
-        return " ".join(
-            re.sub(
-                r"(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)", " ", tweet
-            ).split()
-        )
-
     def get_tweets(
         self,
         query: str = "",
