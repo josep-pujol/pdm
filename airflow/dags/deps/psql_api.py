@@ -18,17 +18,17 @@ class Psql:
 
     def __init__(
         self,
-        host: str = os.getenv("POSTGRES_HOST"),
-        port: Union[str, int] = os.getenv("POSTGRES_PORT"),
-        usr: str = os.getenv("POSTGRES_USER"),
-        pwd: str = os.getenv("POSTGRES_PASSWORD"),
-        db_name: str = os.getenv("POSTGRES_DB"),
+        host: str = None,
+        port: Union[str, int] = None,
+        usr: str = None,
+        pwd: str = None,
+        db_name: str = None,
     ):
-        self.host = host
-        self.port = port
-        self.usr = usr
-        self.pwd = pwd
-        self.db_name = db_name
+        self.host = host if host else os.getenv("POSTGRES_HOST")
+        self.port = port if port else os.getenv("POSTGRES_PORT")
+        self.usr = usr if usr else os.getenv("POSTGRES_USER")
+        self.pwd = pwd if pwd else os.getenv("POSTGRES_PASSWORD")
+        self.db_name = db_name if db_name else os.getenv("POSTGRES_DB")
         self.conn_obj = None
         self.__handle_miss_params__()
 
