@@ -8,6 +8,8 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 
+import json
+from psycopg2.extras import Json
 
 # These args will get passed on to each operator
 default_args = {
@@ -42,25 +44,33 @@ with DAG(
             until=yesterday,
         )
         with Psql(db_name="data_lake") as conn:
-            for t in tweets:
-                print(t.id)
-                json_data = {"tweet_id": t.id, "tweet_json": t._json}
-                Psql.insert_json(
-                    connection=conn,
-                    schema_table_name="data_lake.twitter_data",
-                    json_data=json_data,
-                )
+            # Issues encoding emoticons. To solve, convert json to Postgres Json object 
+            print(f"Returned {len(tweets)} tweets")
+            tweets_to_insert = [
+                {"tweet_id": t.id, "tweet_json": Json(json.dumps(t._json))}
+                for t in tweets
+            ]
+            Psql.insert_rows(
+                connection=conn,
+                schema_table_name="data_lake.twitter_data",
+                data_to_insert=tweets_to_insert,
+                sql_constraint="twitter_data_un"
+            )
         return "Tweets fetched and stored in postgres-dw"
 
     def fetch_weather():
         weather = get_weather(owm_location="Barcelona,ES").to_dict()
         with Psql(db_name="data_lake") as conn:
             print(weather)
-            json_data = {"weather_id": str(date.today()), "weather_json": weather}
-            Psql.insert_json(
+            # weather_to_insert converted to list as Psql.insert_rows requires a list
+            weather_to_insert = [
+                {"weather_id": str(date.today()), "weather_json": Json(json.dumps(weather))}
+            ]
+            Psql.insert_rows(
                 connection=conn,
                 schema_table_name="data_lake.weather_data",
-                json_data=json_data,
+                data_to_insert=weather_to_insert,
+                sql_constraint="weather_data_un"
             )
         return "Current Weather fetched and stored in postgres-dw"
 
