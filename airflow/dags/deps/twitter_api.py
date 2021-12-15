@@ -34,7 +34,7 @@ class TwitterClient:
             print("Error: Twitter Authentication Failed", str(err))
 
     @staticmethod
-    def parse_tweet(tweet, tweet_parser=None) -> Any:
+    def parse_tweet(tweet, tweet_parser: Callable = None) -> Any:
         """parses a tweet if parser function is passed
         otherwise just returns same object passed"""
         if tweet_parser:
@@ -50,8 +50,7 @@ class TwitterClient:
         lang: str = "en",
         until: Union[str, None] = None,
     ):
-        """Calls Tweepy api to fetch tweets as per parameters passed
-        """
+        """Calls Tweepy api to fetch tweets as per parameters passed"""
         try:
             return self.api.search_tweets(
                 q=query, count=count, geocode=geo, lang=lang, until=until
@@ -63,17 +62,7 @@ class TwitterClient:
     @staticmethod
     def remove_duplicate_tweets(tweets):
         """To remove duplicate tweets or retweets"""
-        tweets_ids: Set[str] = set()
-        unique_tweets: List[Status] = []
-        for tweet in tweets:
-            tweets_ids.add(tweet.id_str)
-            if tweet.retweet_count > 0:
-                # if tweet has retweets, ensure that it is appended only once
-                if tweet.id_str not in tweets_ids:
-                    unique_tweets.append(tweet)
-            else:
-                unique_tweets.append(tweet)
-        return unique_tweets
+        return {tweet for tweet in tweets}
 
     def get_tweets(
         self,
@@ -98,12 +87,10 @@ class TwitterClient:
             query=query, count=count, geo=geo, lang=lang, until=until
         )
         unique_tweets = TwitterClient.remove_duplicate_tweets(fetched_tweets)
-        if tweet_parser:
-            return [
-                TwitterClient.parse_tweet(tweet=tweet, tweet_parser=tweet_parser)
-                for tweet in unique_tweets
-            ]
-        return unique_tweets
+        return [
+            TwitterClient.parse_tweet(tweet=tweet, tweet_parser=tweet_parser)
+            for tweet in unique_tweets
+        ]
 
 
 def main():
