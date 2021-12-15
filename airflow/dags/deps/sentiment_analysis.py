@@ -1,18 +1,6 @@
-# TODO: find alternative to install textblob in this file
-# install textblob if not installed, needed for sql script
-# to run in the postgres-dw container
+from textblob import TextBlob
 
-try:
-    from textblob import TextBlob
-except ImportError:
-    import sys
-    import subprocess
-
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "textblob"])
-    from textblob import TextBlob
-
-
-def get_sentiment_score(text):
+def get_sentiment_score(text: str) -> str:
     """
     Utility function to generate sentiment of passed text
     using textblob's sentiment method

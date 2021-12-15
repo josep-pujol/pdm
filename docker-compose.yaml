@@ -120,7 +120,7 @@ services:
       interval: 10s
       retries: 5
     restart: always
-    command: ["bash", "/db_init/init_dbs.sh"]
+    # command: ["bash", "/db_init/init_dbs.sh"]
 
   redis:
     image: redis:latest

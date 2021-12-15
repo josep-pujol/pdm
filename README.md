@@ -1,3 +1,3 @@
-
-docker-compose up airflow-init
-docker-compose up
+To build containers do:
+1) docker-compose up airflow-init
+2) docker-compose up

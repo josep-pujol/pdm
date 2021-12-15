@@ -6,3 +6,4 @@ RUN apt-get update && \
     libnss3-dev libreadline-dev python3-pip
 
 RUN apt-get install -y postgresql-contrib postgresql-plpython3-13
+RUN pip install textblob 
