@@ -2,8 +2,6 @@ import os
 from typing import List, Union
 from dotenv import load_dotenv
 import psycopg2
-from psycopg2 import OperationalError
-
 
 load_dotenv()
 
@@ -68,15 +66,11 @@ class Psql:
             sql = f"{sql} ON CONFLICT ON CONSTRAINT {sql_constraint} DO NOTHING"
         sql = sql + ";"
 
-        try:
-            cur = connection.cursor()
-            # https://www.datacareer.ch/blog/improve-your-psycopg2-executions-for-postgresql-in-python/
-            # https://hakibenita.com/fast-load-data-python-postgresql
-            psycopg2.extras.execute_batch(cur, sql, data_to_insert)
-            connection.commit()
-        except Exception as err:
-            print("Exception while executing db query: ", err)
-            raise
+        cur = connection.cursor()
+        # https://www.datacareer.ch/blog/improve-your-psycopg2-executions-for-postgresql-in-python/
+        # https://hakibenita.com/fast-load-data-python-postgresql
+        psycopg2.extras.execute_batch(cur, sql, data_to_insert)
+        connection.commit()
 
 
 def main():
