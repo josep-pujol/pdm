@@ -8,7 +8,7 @@ from psycopg2.extras import execute_batch
 load_dotenv()
 
 
-def __handle_miss_params__(
+def _handle_miss_params(
     host: str, port: Union[str, int], usr: str, pwd: str
 ) -> None:
     if not all((host, port, usr, pwd)):
@@ -27,7 +27,7 @@ def get_conn(
     usr = usr if usr else os.getenv("POSTGRES_USER")
     pwd = pwd if pwd else os.getenv("POSTGRES_PASSWORD")
     db_name = db_name if db_name else os.getenv("POSTGRES_DB")
-    __handle_miss_params__(host, port, usr, pwd)
+    _handle_miss_params(host, port, usr, pwd)
 
     return psycopg2.connect(
         host=host,
