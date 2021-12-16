@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 
-from deps.psql_api import Psql
+from deps import psql_api
 from deps.twitter_api import TwitterClient
 from deps.weather_api import get_weather
 
@@ -43,37 +43,39 @@ with DAG(
             lang="en",
             until=yesterday,
         )
-        with Psql(db_name="data_lake") as conn:
-            # Issues encoding emoticons. To solve, convert json to Postgres Json object 
-            print(f"Returned {len(tweets)} tweets")
-            tweets_to_insert = [
-                {"tweet_id": t.id, "tweet_json": Json(json.dumps(t._json))}
-                for t in tweets
-            ]
-            Psql.insert_rows(
-                connection=conn,
-                schema_table_name="data_lake.twitter_data",
-                data_to_insert=tweets_to_insert,
-                sql_constraint="twitter_data_un"
-            )
+        conn = psql_api.get_conn(db_name="data_lake")
+        print(f"Returned {len(tweets)} tweets")
+        # Issues encoding emoticons. To solve, convert json to Postgres Json object
+        tweets_to_insert = [
+            {"tweet_id": t.id, "tweet_json": Json(json.dumps(t._json))} for t in tweets
+        ]
+        psql_api.insert_rows(
+            conn=conn,
+            schema_table_name="data_lake.twitter_data",
+            data_to_insert=tweets_to_insert,
+            sql_constraint="twitter_data_un",
+        )
+        conn.close()
+
         return "Tweets fetched and stored in postgres-dw"
 
     def fetch_weather():
         weather = get_weather(owm_location="Barcelona,ES").to_dict()
-        with Psql(db_name="data_lake") as conn:
-            print(weather)
-            # weather_to_insert converted to list as Psql.insert_rows requires a list
-            weather_to_insert = [
-                {"weather_id": str(date.today()), "weather_json": Json(json.dumps(weather))}
-            ]
-            Psql.insert_rows(
-                connection=conn,
-                schema_table_name="data_lake.weather_data",
-                data_to_insert=weather_to_insert,
-                sql_constraint="weather_data_un"
-            )
-        return "Current Weather fetched and stored in postgres-dw"
+        conn = psql_api.get_conn(db_name="data_lake")
+        print(weather)
+        # weather_to_insert converted to list as Psql.insert_rows requires a list
+        weather_to_insert = [
+            {"weather_id": str(date.today()), "weather_json": Json(json.dumps(weather))}
+        ]
+        psql_api.insert_rows(
+            conn=conn,
+            schema_table_name="data_lake.weather_data",
+            data_to_insert=weather_to_insert,
+            sql_constraint="weather_data_un",
+        )
+        conn.close()
 
+        return "Current Weather fetched and stored in postgres-dw"
 
     printContext = PythonOperator(
         task_id="print_context",
